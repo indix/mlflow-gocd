@@ -10,5 +10,16 @@ lazy val root = (project in file(".")).
       version      := appVersion
     )),
     name := "mlflow-gocd",
-    libraryDependencies ++= Seq(goPluginLibrary, gson, apacheCommons, httpClient, scalaTest)
+    libraryDependencies ++= Seq(goPluginLibrary, gson, apacheCommons, httpClient, scalaTest),
+    resourceGenerators in Compile += Def.task {
+      val inputFile = baseDirectory.value / "template" / "plugin.xml"
+      val outputFile = (resourceManaged in Compile).value / "plugin.xml"
+      val contents = IO.read(inputFile)
+      IO.write(outputFile, contents.replaceAll("\\$\\{version\\}", appVersion))
+      Seq(outputFile)
+    }.taskValue,
+    mappings in (Compile, packageBin) += {
+     (resourceManaged in Compile).value / "plugin.xml" -> "plugin.xml"
+    },
+    javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
   )
