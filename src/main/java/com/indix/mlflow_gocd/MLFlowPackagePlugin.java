@@ -35,6 +35,8 @@ public class MLFlowPackagePlugin implements GoPlugin {
     public static final String REQUEST_LATEST_REVISION = "latest-revision";
     public static final String REQUEST_LATEST_REVISION_SINCE = "latest-revision-since";
 
+    private static final String MLFLOW_GET_EXPERIMENT_ENDPOINT="/api/2.0/preview/mlflow/experiments/get";
+
     private static Logger logger = Logger.getLoggerFor(MLFlowPackagePlugin.class);
 
     private final HttpRequestFactory requestFactory;
@@ -58,7 +60,7 @@ public class MLFlowPackagePlugin implements GoPlugin {
         } else if (goPluginApiRequest.requestName().equals(REQUEST_VALIDATE_REPOSITORY_CONFIGURATION)) {
             return handleRepositoryValidation(goPluginApiRequest);
         } else if (goPluginApiRequest.requestName().equals(REQUEST_VALIDATE_PACKAGE_CONFIGURATION)) {
-            return handlePackageValidation();
+            return handlePackageValidation(goPluginApiRequest);
         } else if (goPluginApiRequest.requestName().equals(REQUEST_CHECK_REPOSITORY_CONNECTION)) {
             return handleRepositoryCheckConnection(goPluginApiRequest);
         } else if (goPluginApiRequest.requestName().equals(REQUEST_CHECK_PACKAGE_CONNECTION)) {
@@ -80,40 +82,77 @@ public class MLFlowPackagePlugin implements GoPlugin {
     }
 
     private GoPluginApiResponse handlePackageCheckConnection(GoPluginApiRequest goPluginApiRequest) {
-        return null;
+        final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
+        final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
+
+        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
+        String experimentId = packageConfig.get(EXPERIMENT_ID);
+
+        MaterialResult result;
+        if(StringUtils.isBlank(mlflowUrl)) {
+            result = new MaterialResult(false, "Experiment id must be specified");
+        } else {
+            try {
+                GenericUrl getExperimentUrl = new GenericUrl(String.format("%s%s?experiment_id=%s", mlflowUrl, MLFLOW_GET_EXPERIMENT_ENDPOINT, experimentId));
+                HttpResponse response = requestFactory.buildGetRequest(getExperimentUrl).execute();
+                if (response.getStatusCode() != 200) {
+                    result = new MaterialResult(false, String.format("Experiment %s not found", experimentId));
+                } else {
+                    result = new MaterialResult(true, "Success");
+                }
+            } catch(IOException ex) {
+                result = new MaterialResult(false, String.format("Unable to reach MLFlow at %s - %s", mlflowUrl, ex.getMessage()));
+                logger.error("Unable to reach mlflow", ex);
+            }
+        }
+
+        return createResponse(result.responseCode(), result.toMap());
     }
 
     private GoPluginApiResponse handleRepositoryCheckConnection(GoPluginApiRequest goPluginApiRequest) {
-        return null;
+        final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
+
+        MaterialResult result;
+        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
+
+        if(StringUtils.isBlank(mlflowUrl)) {
+            result = new MaterialResult(false, "MLFlow url must be specified");
+        } else {
+            try {
+                HttpResponse response = requestFactory.buildGetRequest(new GenericUrl(mlflowUrl)).execute();
+                if (response.getStatusCode() != 200) {
+                    result = new MaterialResult(false, String.format("Unable to reach MLFlow at %s", mlflowUrl));
+                } else {
+                    result = new MaterialResult(true, "Success");
+                }
+            } catch(IOException ex) {
+                result = new MaterialResult(false, String.format("Unable to reach MLFlow at %s - %s", mlflowUrl, ex.getMessage()));
+                logger.error("Unable to reach mlflow", ex);
+            }
+        }
+
+        return createResponse(result.responseCode(), result.toMap());
     }
 
-    private GoPluginApiResponse handlePackageValidation() {
-        return null;
+    private GoPluginApiResponse handlePackageValidation(GoPluginApiRequest goPluginApiRequest) {
+        List<Map<String, Object>> validationResult = new ArrayList<>();
+        final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
+
+        String experimentId = packageConfig.get(EXPERIMENT_ID);
+        if(StringUtils.isBlank(experimentId)) {
+            addError(EXPERIMENT_ID, "Experiment ID must be specified", validationResult);
+        }
+
+        return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, validationResult);
     }
 
     private GoPluginApiResponse handleRepositoryValidation(GoPluginApiRequest goPluginApiRequest) {
         List<Map<String, Object>> validationResult = new ArrayList<>();
-        final Map<String, String> repositoryKeyValuePairs = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
+        final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
 
-        String mlflowUrl = repositoryKeyValuePairs.get(MLFLOW_URL);
+        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
         if(StringUtils.isBlank(mlflowUrl)) {
-            HashMap<String, Object> errorMap = new HashMap<>();
-            errorMap.put("key", MLFLOW_URL);
-            errorMap.put("message", "MLFlow URL must be specified");
-            validationResult.add(errorMap);
-        }
-
-        try {
-            HttpResponse response = requestFactory.buildGetRequest(new GenericUrl(mlflowUrl)).execute();
-            if (response.getStatusCode() != 200) {
-                addError(MLFLOW_URL, "Unable to reach MLFlow", validationResult);
-                HashMap<String, Object> errorMap = new HashMap<>();
-                errorMap.put("key", MLFLOW_URL);
-                errorMap.put("message", "Unable to reach MLFlow");
-                validationResult.add(errorMap);
-            }
-        } catch(IOException ex) {
-            addError(MLFLOW_URL, "Unable to reach MLFlow - " + ex.getMessage(), validationResult);
+            addError(MLFLOW_URL, "MLFlow URL must be specified", validationResult);
         }
 
         return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, validationResult);
@@ -125,10 +164,10 @@ public class MLFlowPackagePlugin implements GoPlugin {
                 createField("Experiment ID", null, true, true, false, "1")
         );
         response.put(PROMOTION_TAG_NAME,
-                createField("Promotion Tag Name", "promote", true, true, false, "2")
+                createField("Promotion Tag Name", "promote", true, false, false, "2")
         );
         response.put(PROMOTION_TAG_VALUE,
-                createField("Promotion Tag Value", "true", true, true, false, "3")
+                createField("Promotion Tag Value", "true", true, false, false, "3")
         );
         return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, response);
     }
