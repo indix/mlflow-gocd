@@ -10,5 +10,5 @@ lazy val root = (project in file(".")).
       version      := appVersion
     )),
     name := "mlflow-gocd",
-    libraryDependencies ++= Seq(goPluginLibrary, scalaTest)
+    libraryDependencies ++= Seq(goPluginLibrary, gson, apacheCommons, httpClient, scalaTest)
   )
