@@ -147,7 +147,7 @@ public class MLFlowPackagePlugin implements GoPlugin {
                 latestPromotedRun.info.run_uuid,
                 latestPromotedRun.info.end_time,
                 String.format("%s#/experiments/%s/runs/%s", mlflowUrl, experimentId, latestPromotedRun.info.run_uuid),
-                "mlflow",
+                latestPromotedRun.data.getUser(),
                 latestPromotedRun.info.run_uuid);
     }
 

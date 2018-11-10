@@ -28,4 +28,11 @@ public class RunData {
 
         return null;
     }
+
+    public String getUser() {
+        RunTag userTag = getTag("user");
+        if(userTag == null) return "mlflow";
+
+        return userTag.value;
+    }
 }
