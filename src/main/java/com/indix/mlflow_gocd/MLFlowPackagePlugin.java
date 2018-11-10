@@ -42,6 +42,7 @@ public class MLFlowPackagePlugin implements GoPlugin {
     public static final String REQUEST_CHECK_PACKAGE_CONNECTION = "check-package-connection";
     public static final String REQUEST_LATEST_REVISION = "latest-revision";
     public static final String REQUEST_LATEST_REVISION_SINCE = "latest-revision-since";
+    public static final String REQUEST_PREVIOUS_REVISION= "previous-revision";
 
     private static final String MLFLOW_GET_EXPERIMENT_ENDPOINT="/api/2.0/preview/mlflow/experiments/get";
     private static final String MLFLOW_SEARCH_RUNS_ENDPOINT="/api/2.0/preview/mlflow/runs/search";
@@ -86,7 +87,28 @@ public class MLFlowPackagePlugin implements GoPlugin {
     }
 
     private GoPluginApiResponse handleLatestRevisionSince(GoPluginApiRequest goPluginApiRequest) {
-        return null;
+        final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
+        final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
+        final Map<String, String> previousRevision = keyValuePairs(goPluginApiRequest, REQUEST_PREVIOUS_REVISION);
+
+        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
+        Integer experimentId = Integer.parseInt(packageConfig.get(EXPERIMENT_ID));
+        String promoteTagKey = packageConfig.get(PROMOTION_TAG_NAME);
+        String promoteTagValue = packageConfig.get(PROMOTION_TAG_VALUE);
+
+        try {
+            RevisionStatus status = getLatestPromotedRun(mlflowUrl, experimentId, promoteTagKey, promoteTagValue);
+            if(!Objects.equals(previousRevision.get("revision"), status.runId)) {
+                return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
+            }
+
+            return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, null);
+        }
+        catch(Exception ex) {
+            logger.error("Error while trying to get latest promoted run info from MLFlow", ex);
+            return createResponse(DefaultGoPluginApiResponse.INTERNAL_ERROR, null);
+        }
+
     }
 
     private GoPluginApiResponse handleGetLatestRevision(GoPluginApiRequest goPluginApiRequest) {
@@ -98,33 +120,35 @@ public class MLFlowPackagePlugin implements GoPlugin {
         String promoteTagKey = packageConfig.get(PROMOTION_TAG_NAME);
         String promoteTagValue = packageConfig.get(PROMOTION_TAG_VALUE);
 
-        Map<String, Object> payload = new HashMap<>();
-        List<Integer> experimentIds = new ArrayList<>();
-        experimentIds.add(experimentId);
-        payload.put("experiment_ids", experimentIds);
-        payload.put("run_view_type", "ACTIVE_ONLY");
-
         try {
-            HttpResponse response = requestFactory.buildPostRequest(
-                    new GenericUrl(String.format("%s%s", mlflowUrl, MLFLOW_SEARCH_RUNS_ENDPOINT)),
-                    new JsonHttpContent(this.jsonFactory, payload))
-                    .setParser(new JsonObjectParser(this.jsonFactory))
-                    .execute();
-            SearchResponse searchResponse = response.parseAs(SearchResponse.class);
-            Run latestPromotedRun = searchResponse.latestWithTag(promoteTagKey, promoteTagValue);
-            RevisionStatus status = new RevisionStatus(
-                    latestPromotedRun.info.run_uuid,
-                    latestPromotedRun.info.end_time,
-                    String.format("%s#/experiments/%s/runs/%s", mlflowUrl, experimentId, latestPromotedRun.info.run_uuid),
-                    "mlflow",
-                    latestPromotedRun.info.run_uuid);
+            RevisionStatus status = getLatestPromotedRun(mlflowUrl, experimentId, promoteTagKey, promoteTagValue);
             return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
-
         }
         catch(Exception ex) {
             logger.error("Error while trying to get latest promoted run info from MLFlow", ex);
             return createResponse(DefaultGoPluginApiResponse.INTERNAL_ERROR, null);
         }
+    }
+
+    private RevisionStatus getLatestPromotedRun(String mlflowUrl, Integer experimentId, String promoteTagKey, String promoteTagValue) throws IOException {
+        Map<String, Object> payload = new HashMap<>();
+        List<Integer> experimentIds = new ArrayList<>();
+        experimentIds.add(experimentId);
+        payload.put("experiment_ids", experimentIds);
+        payload.put("run_view_type", "ACTIVE_ONLY");
+        HttpResponse response = requestFactory.buildPostRequest(
+                new GenericUrl(String.format("%s%s", mlflowUrl, MLFLOW_SEARCH_RUNS_ENDPOINT)),
+                new JsonHttpContent(this.jsonFactory, payload))
+                .setParser(new JsonObjectParser(this.jsonFactory))
+                .execute();
+        SearchResponse searchResponse = response.parseAs(SearchResponse.class);
+        Run latestPromotedRun = searchResponse.latestWithTag(promoteTagKey, promoteTagValue);
+        return new RevisionStatus(
+                latestPromotedRun.info.run_uuid,
+                latestPromotedRun.info.end_time,
+                String.format("%s#/experiments/%s/runs/%s", mlflowUrl, experimentId, latestPromotedRun.info.run_uuid),
+                "mlflow",
+                latestPromotedRun.info.run_uuid);
     }
 
     private GoPluginApiResponse handlePackageCheckConnection(GoPluginApiRequest goPluginApiRequest) {
