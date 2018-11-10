@@ -10,4 +10,6 @@ public class RunInfo {
     public String run_uuid;
     @Key
     public String end_time;
+    @Key
+    public String artifact_uri;
 }

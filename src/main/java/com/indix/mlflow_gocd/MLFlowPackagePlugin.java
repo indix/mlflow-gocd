@@ -143,12 +143,15 @@ public class MLFlowPackagePlugin implements GoPlugin {
                 .execute();
         SearchResponse searchResponse = response.parseAs(SearchResponse.class);
         Run latestPromotedRun = searchResponse.latestWithTag(promoteTagKey, promoteTagValue);
+        Map<String, Object> additionalRevisionData = new HashMap<>();
+        additionalRevisionData.put("ARTIFACT_URI", latestPromotedRun.info.artifact_uri);
         return new RevisionStatus(
                 latestPromotedRun.info.run_uuid,
                 latestPromotedRun.info.end_time,
                 String.format("%s#/experiments/%s/runs/%s", mlflowUrl, experimentId, latestPromotedRun.info.run_uuid),
                 latestPromotedRun.data.getUser(),
-                latestPromotedRun.info.run_uuid);
+                latestPromotedRun.info.run_uuid,
+                additionalRevisionData);
     }
 
     private GoPluginApiResponse handlePackageCheckConnection(GoPluginApiRequest goPluginApiRequest) {
