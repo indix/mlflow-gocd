@@ -89,7 +89,7 @@ public class MLFlowPackagePlugin implements GoPlugin {
     private GoPluginApiResponse handleLatestRevisionSince(GoPluginApiRequest goPluginApiRequest) {
         final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
         final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
-        final Map<String, String> previousRevision = keyValuePairs(goPluginApiRequest, REQUEST_PREVIOUS_REVISION);
+        final Map<String, Object> previousRevision = getMapFor(goPluginApiRequest, REQUEST_PREVIOUS_REVISION);
 
         String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
         Integer experimentId = Integer.parseInt(packageConfig.get(EXPERIMENT_ID));
@@ -105,7 +105,7 @@ public class MLFlowPackagePlugin implements GoPlugin {
             return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, null);
         }
         catch(Exception ex) {
-            logger.error("Error while trying to get latest promoted run info from MLFlow", ex);
+            logger.error("Error while trying to get newer promoted run info from MLFlow", ex);
             return createResponse(DefaultGoPluginApiResponse.INTERNAL_ERROR, null);
         }
 
@@ -143,7 +143,7 @@ public class MLFlowPackagePlugin implements GoPlugin {
                 .execute();
         SearchResponse searchResponse = response.parseAs(SearchResponse.class);
         Run latestPromotedRun = searchResponse.latestWithTag(promoteTagKey, promoteTagValue);
-        Map<String, Object> additionalRevisionData = new HashMap<>();
+        Map<String, String> additionalRevisionData = new HashMap<>();
         additionalRevisionData.put("ARTIFACT_URI", latestPromotedRun.info.artifact_uri);
         return new RevisionStatus(
                 latestPromotedRun.info.run_uuid,

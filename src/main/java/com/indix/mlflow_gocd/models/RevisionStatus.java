@@ -13,10 +13,10 @@ public class RevisionStatus {
     public String trackbackUrl;
     public String user;
     public String revisionLabel;
-    public Map<String, Object> additionalData;
+    public Map<String, String> additionalData;
     private static final String DATE_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
-    public RevisionStatus(String runId, String endTime, String trackbackUrl, String user, String revisionLabel, Map<String, Object> additionalData) {
+    public RevisionStatus(String runId, String endTime, String trackbackUrl, String user, String revisionLabel, Map<String, String> additionalData) {
         this.runId = runId;
         this.endTime = new Date(Long.parseLong(endTime));
         this.trackbackUrl = trackbackUrl;
