@@ -4,7 +4,15 @@ import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.http.json.JsonHttpContent;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.JsonObjectParser;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.gson.GsonBuilder;
+import com.indix.mlflow_gocd.mlfow.Run;
+import com.indix.mlflow_gocd.mlfow.SearchResponse;
+import com.indix.mlflow_gocd.models.MaterialResult;
+import com.indix.mlflow_gocd.models.RevisionStatus;
 import com.thoughtworks.go.plugin.api.GoApplicationAccessor;
 import com.thoughtworks.go.plugin.api.GoPlugin;
 import com.thoughtworks.go.plugin.api.GoPluginIdentifier;
@@ -36,14 +44,18 @@ public class MLFlowPackagePlugin implements GoPlugin {
     public static final String REQUEST_LATEST_REVISION_SINCE = "latest-revision-since";
 
     private static final String MLFLOW_GET_EXPERIMENT_ENDPOINT="/api/2.0/preview/mlflow/experiments/get";
+    private static final String MLFLOW_SEARCH_RUNS_ENDPOINT="/api/2.0/preview/mlflow/runs/search";
 
     private static Logger logger = Logger.getLoggerFor(MLFlowPackagePlugin.class);
 
     private final HttpRequestFactory requestFactory;
+    private final JsonFactory jsonFactory;
 
     public MLFlowPackagePlugin() {
         NetHttpTransport.Builder builder = new NetHttpTransport.Builder();
+        this.jsonFactory = new GsonFactory();
         this.requestFactory = builder.build().createRequestFactory();
+
     }
 
     @Override
@@ -78,7 +90,41 @@ public class MLFlowPackagePlugin implements GoPlugin {
     }
 
     private GoPluginApiResponse handleGetLatestRevision(GoPluginApiRequest goPluginApiRequest) {
-        return null;
+        final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
+        final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
+
+        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
+        Integer experimentId = Integer.parseInt(packageConfig.get(EXPERIMENT_ID));
+        String promoteTagKey = packageConfig.get(PROMOTION_TAG_NAME);
+        String promoteTagValue = packageConfig.get(PROMOTION_TAG_VALUE);
+
+        Map<String, Object> payload = new HashMap<>();
+        List<Integer> experimentIds = new ArrayList<>();
+        experimentIds.add(experimentId);
+        payload.put("experiment_ids", experimentIds);
+        payload.put("run_view_type", "ACTIVE_ONLY");
+
+        try {
+            HttpResponse response = requestFactory.buildPostRequest(
+                    new GenericUrl(String.format("%s%s", mlflowUrl, MLFLOW_SEARCH_RUNS_ENDPOINT)),
+                    new JsonHttpContent(this.jsonFactory, payload))
+                    .setParser(new JsonObjectParser(this.jsonFactory))
+                    .execute();
+            SearchResponse searchResponse = response.parseAs(SearchResponse.class);
+            Run latestPromotedRun = searchResponse.latestWithTag(promoteTagKey, promoteTagValue);
+            RevisionStatus status = new RevisionStatus(
+                    latestPromotedRun.info.run_uuid,
+                    latestPromotedRun.info.end_time,
+                    String.format("%s#/experiments/%s/runs/%s", mlflowUrl, experimentId, latestPromotedRun.info.run_uuid),
+                    "mlflow",
+                    latestPromotedRun.info.run_uuid);
+            return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
+
+        }
+        catch(Exception ex) {
+            logger.error("Error while trying to get latest promoted run info from MLFlow", ex);
+            return createResponse(DefaultGoPluginApiResponse.INTERNAL_ERROR, null);
+        }
     }
 
     private GoPluginApiResponse handlePackageCheckConnection(GoPluginApiRequest goPluginApiRequest) {

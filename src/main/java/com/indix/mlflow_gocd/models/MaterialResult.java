@@ -1,4 +1,4 @@
-package com.indix.mlflow_gocd;
+package com.indix.mlflow_gocd.models;
 
 import com.thoughtworks.go.plugin.api.response.DefaultGoApiResponse;
 

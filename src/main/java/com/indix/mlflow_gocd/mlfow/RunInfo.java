@@ -9,5 +9,5 @@ public class RunInfo {
     @Key
     public String run_uuid;
     @Key
-    public long end_time;
+    public String end_time;
 }
