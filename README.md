@@ -8,19 +8,19 @@ The plugin works with a process where runs within an experiment are "promoted" f
 ## Configuring the repository
 
 <p align="center">
-<img src="docs/configure-repository.png"/>
+<img src="docs/configure-repository.png" width="801px" height="400px"/>
 </p>
 
 ## Configuring experiments as packages
 
 <p align="center">
-<img src="docs/configure-package.png"/>
+<img src="docs/configure-package.png" width="600px" height="300px"/>
 </p>
 
 ## Build comment with trackback url
 
 <p align="center">
-<img src="docs/trackback.png"/>
+<img src="docs/trackback.png" width="600px" height="270px"/>
 </p>
 
 
