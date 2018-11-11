@@ -19,7 +19,8 @@ deploy:
   api_key:
     secure: "aYpmzD3DR2Fwi5LEHCvlZmziS0PMBujM8m8tXMxWIdvCou+qNubiTash0nV4L8DEdhKBrtdGWM1PwNENFjEW2H8ARwrsfq0yHVQZC0W4uSbJEb+mEgqKvHSC/q0iCYTbgxmWVKyDTMueoGcqK6WNsP1gcgThgYT2UinlsFLaE6V/IATs6ll2QB4sFhcUuEvUkhuOUQJUNy1KopapZ3uosm9ROf11kdcnbhWCbVjIJuHgM8q1CBsQaMhXTu7w3lZjrFhqZzxTEm6jBlBhI83f2WEi/jQJpXzgLX94w7r6eiEf3HhDj5PSlOOyC7vWzcMHSGUInRn4uulN33qA+UkZmQx3LoLqRjjONJBq+In3gUM11cw+u8cx/qShAtcvU4AV/thM/+uQEpypFCMHRn+ZEbuhJ9EZwlk9EUgjuB0ahxL+lEaCfyXcJhh+5FgPC5QBSWCH7hAgZjXfhQnbMFAJ07w5kWQOyEXdw0uMSwzOwF34n2PuLsbpRI0timf05JJ8fq9ZFy2anvvkitS1Cu8lVWLmA6+8+zNeESG3CB20MCzgEf44/olEP9k7290IIZcxQC7+HIecr3XGr6AsK9FeGUib2aTH5mMB8RjJuasYCIzDMqrdFcDbJ7xPIIYOrLyOQvxQT/Svf1+oVeo0PtcvKATK+2/UfZXmrXEhZqKjXvg="
   file:
-  - "./target/scala-2.11/mlflow-gocd-assembly-${TRAVIS_TAG}.jar"
+  - "./material/target/mlflow-gocd-material-assembly-${TRAVIS_TAG}.jar"
+  - "./fetch/target/mlflow-gocd-fetch-assembly-${TRAVIS_TAG}.jar"
   skip_cleanup: true
   on:
     tags: true
