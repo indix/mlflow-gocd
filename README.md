@@ -11,3 +11,16 @@ The plugin works with a process where runs within an experiment are "promoted" f
 <img src="docs/configure-repository.png"/>
 </p>
 
+## Configuring experiments as packages
+
+<p align="center">
+<img src="docs/configure-package.png"/>
+</p>
+
+## Build comment with trackback url
+
+<p align="center">
+<img src="docs/trackback.png"/>
+</p>
+
+
