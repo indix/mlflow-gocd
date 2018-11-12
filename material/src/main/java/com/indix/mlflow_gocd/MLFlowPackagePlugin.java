@@ -23,7 +23,6 @@ import com.thoughtworks.go.plugin.api.request.GoPluginApiRequest;
 import com.thoughtworks.go.plugin.api.response.DefaultGoPluginApiResponse;
 import com.thoughtworks.go.plugin.api.response.GoPluginApiResponse;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.util.*;

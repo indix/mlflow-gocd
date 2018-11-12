@@ -19,7 +19,7 @@ public class SearchResponse {
                 return run.hasTagOfValue(key, value);
             }
         });
-        promotedRuns.sort((o1, o2) -> Long.parseLong(o1.info.end_time) > Long.parseLong(o2.info.end_time) ? 1 : 0);
+        promotedRuns.sort((o1, o2) -> Long.parseLong(o1.info.end_time) <= Long.parseLong(o2.info.end_time) ? 1 : -1);
 
         return promotedRuns.size() > 0 ? promotedRuns.get(0) : null;
     }
