@@ -30,7 +30,7 @@ Tested on `GoCD 17.2.0+` and `MLFlow 0.7.0`
 Optionally the fetch plugin can also be used in conjunction with the package plugin to fetch artifacts stored in mlflow (backed by S3.)
 
 <p align="center">
-<img src="docs/fetch.png" width="600px" height="600px"/>
+<img src="docs/fetch.png" width="400px" height="420px"/>
 </p>
 
 
