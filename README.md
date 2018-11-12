@@ -1,9 +1,11 @@
 # mlflow-gocd
 [![Build Status](https://travis-ci.org/indix/mlflow-gocd.svg?branch=master)](https://travis-ci.org/indix/mlflow-gocd)
 
-GoCD plugins to work with MLFlow as model repository
+GoCD plugins to work with MLFlow as model repository.
 
-The plugin works with a process where runs within an experiment are "promoted" for production use. A new build is triggered for each promoted run in an experiment and exposes the `artifact_uri` as an environment variable to the build.
+The plugin works with a process where runs within an experiment are "promoted" for production use. A new build is triggered for each promoted run in an experiment and exposes the `artifact_uri` as an environment variable to the build. 
+
+The optional fetch model plugin utilizes the artifacts uri and the given artifact pattern / name to download the model(s) (from S3 as of now) to the desired destination during the build.
 
 Tested on `GoCD 17.2.0+` and `MLFlow 0.7.0`
 
