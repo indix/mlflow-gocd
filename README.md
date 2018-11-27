@@ -1,6 +1,11 @@
 # mlflow-gocd
 [![Build Status](https://travis-ci.org/indix/mlflow-gocd.svg?branch=master)](https://travis-ci.org/indix/mlflow-gocd)
 
+<p align="center">
+<img src="docs/logo.svg" width="300px"/>
+</p>
+
+
 GoCD plugins to work with MLFlow as model repository.
 
 The plugin works with a process where runs within an experiment are "promoted" for production use. A new build is triggered for each promoted run in an experiment and exposes the `artifact_uri` as an environment variable to the build. 
