@@ -88,7 +88,6 @@ public class MLFlowPackagePlugin implements GoPlugin {
     }
 
     private GoPluginApiResponse handleLatestRevisionSince(GoPluginApiRequest goPluginApiRequest) {
-        logger.info("Inside get latest revision since");
         final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
         final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
         final Map<String, Object> previousRevision = getMapFor(goPluginApiRequest, REQUEST_PREVIOUS_REVISION);
@@ -105,7 +104,6 @@ public class MLFlowPackagePlugin implements GoPlugin {
                 return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
             }
 
-            logger.info("Changed from previous");
             return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, null);
         }
         catch(Exception ex) {
@@ -116,7 +114,6 @@ public class MLFlowPackagePlugin implements GoPlugin {
     }
 
     private GoPluginApiResponse handleGetLatestRevision(GoPluginApiRequest goPluginApiRequest) {
-        logger.info("Inside get latest revision");
         final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
         final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
 
@@ -127,7 +124,6 @@ public class MLFlowPackagePlugin implements GoPlugin {
 
         try {
             RevisionStatus status = getLatestPromotedRun(mlflowUrl, experimentId, promoteTagKey, promoteTagValue);
-            logger.info("Got latest revison status");
             return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
         }
         catch(Exception ex) {
@@ -153,13 +149,22 @@ public class MLFlowPackagePlugin implements GoPlugin {
         Map<String, String> additionalRevisionData = new HashMap<>();
         additionalRevisionData.put("ARTIFACT_URI", latestPromotedRun.info.artifact_uri);
         runsWithPRTag.forEach((prId, run)-> additionalRevisionData.put("PR_ID_ARTIFACT_URI_" + prId, run.info.artifact_uri));
+        String all_run_ids = getAllRunIdsString(latestPromotedRun.info.run_uuid, runsWithPRTag.values());
         return new RevisionStatus(
-                latestPromotedRun.info.run_uuid,
+                all_run_ids,
                 latestPromotedRun.info.end_time,
                 String.format("%s#/experiments/%s/runs/%s", mlflowUrl, experimentId, latestPromotedRun.info.run_uuid),
                 latestPromotedRun.data.getUser(),
                 latestPromotedRun.info.run_uuid,
                 additionalRevisionData);
+    }
+
+    private String getAllRunIdsString(String run_uuid, Collection<Run> prRuns) {
+        List<Run> list = new ArrayList<>(prRuns);
+        list.sort(Comparator.comparing(o -> o.info.run_uuid));
+        StringBuilder allRuns = new StringBuilder(run_uuid);
+        list.forEach(run-> allRuns.append(";").append(run.info.run_uuid));
+        return allRuns.toString();
     }
 
     private GoPluginApiResponse handlePackageCheckConnection(GoPluginApiRequest goPluginApiRequest) {
