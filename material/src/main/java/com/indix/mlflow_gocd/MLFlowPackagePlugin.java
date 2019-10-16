@@ -100,7 +100,6 @@ public class MLFlowPackagePlugin implements GoPlugin {
         try {
             RevisionStatus status = getLatestPromotedRun(mlflowUrl, experimentId, promoteTagKey, promoteTagValue);
             if(!Objects.equals(previousRevision.get("revision"), status.runId)) {
-                logger.info("No change from previous");
                 return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
             }
 
