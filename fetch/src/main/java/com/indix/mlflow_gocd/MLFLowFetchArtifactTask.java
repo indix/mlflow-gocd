@@ -88,7 +88,19 @@ public class MLFLowFetchArtifactTask implements GoPlugin {
             FetchConfig config = new FetchConfig(configMap);
             final GoEnvironment env = new GoEnvironment(context.getEnvironmentVariables());
             final AmazonS3 client = getS3client(env);
-            final String artifactsUri = env.get(String.format("GO_PACKAGE_%s_%s_ARTIFACT_URI", config.getRepo(), config.getPkg()));
+            String artifactsUri = env.get(String.format("GO_PACKAGE_%s_%s_ARTIFACT_URI", config.getRepo(), config.getPkg()));
+            final String prId = env.getByPattern("^GO_SCM_(.+)_PR_ID$");
+            if(prId != null) {
+                /* PR pipeline */
+                context.printMessage(String.format("Getting artifacts uri for mlflow PR run with pr_id=%s", prId));
+                String env_var = String.format("GO_PACKAGE_%s_%s_PR_ID_ARTIFACT_URI_%s", config.getRepo(), config.getPkg(), prId);
+                if(env.has(env_var)) {
+                    artifactsUri = env.get(env_var);
+                }
+                else {
+                    context.printMessage(String.format("Unable to get artifacts url for mlflow PR run with pr_id=%s", prId));
+                }
+            }
             context.printMessage(String.format("Artifacts uri for %s - %s is %s", config.getRepo(), config.getPkg(), artifactsUri));
             final String bucketName = artifactsUri.split("//|/")[1];
             final String prefix = artifactsUri.replace(String.format("s3://%s/", bucketName), "");

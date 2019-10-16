@@ -16,4 +16,9 @@ public class Run {
         RunTag tag = data.getTag(key);
         return tag != null && Objects.equals(tag.value, value);
     }
+
+    public boolean hasTag(String key) {
+        if(data == null) return false;
+        return data.getTag(key) != null;
+    }
 }

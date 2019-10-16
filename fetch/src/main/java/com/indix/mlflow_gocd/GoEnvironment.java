@@ -41,6 +41,24 @@ public class GoEnvironment {
         else return defaultValue;
     }
 
+    public String getByPattern(String patternStr) {
+        String key = getEnvVarByPattern(patternStr);
+        if(key == null) {
+            return null;
+        }
+        return environment.get(key);
+    }
+
+    public String getEnvVarByPattern(String patternStr) {
+        Pattern pattern = Pattern.compile(patternStr);
+        for(String key: environment.keySet()) {
+            if(pattern.matcher(key).matches()) {
+                return key;
+            }
+        }
+        return null;
+    }
+
     public boolean has(String name) {
         return environment.containsKey(name) && isNotEmpty(get(name));
     }
