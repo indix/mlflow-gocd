@@ -1,7 +1,9 @@
 package com.indix.mlflow_gocd.mlfow;
 
 import com.google.api.client.util.Key;
+import com.indix.mlflow_gocd.MLFlowPackagePlugin;
 import com.indix.mlflow_gocd.utils.Functions;
+import com.thoughtworks.go.plugin.api.logging.Logger;
 
 import java.time.Instant;
 import java.time.Period;
@@ -20,7 +22,7 @@ public class SearchResponse {
         List<Run> promotedRuns = filter(runs, new Functions.Predicate<Run>() {
             @Override
             public Boolean execute(Run run) {
-                return run.hasTagOfValue(key, value);
+                return run.isFinished() && run.hasTagOfValue(key, value);
             }
         });
         promotedRuns.sort((o1, o2) -> Long.parseLong(o1.info.end_time) <= Long.parseLong(o2.info.end_time) ? 1 : -1);
@@ -34,7 +36,10 @@ public class SearchResponse {
         List<Run> prRuns = filter(runs, new Functions.Predicate<Run>() {
             @Override
             public Boolean execute(Run run) {
-                Instant end_time = Instant.ofEpochSecond(Long.parseLong(run.info.end_time));
+                if(!run.isFinished()) {
+                    return false;
+                }
+                Instant end_time = Instant.ofEpochMilli(Long.parseLong(run.info.end_time));
                 return run.hasTag(key) && lastDate.isBefore(end_time);
             }
         });

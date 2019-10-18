@@ -21,4 +21,8 @@ public class Run {
         if(data == null) return false;
         return data.getTag(key) != null;
     }
+
+    public boolean isFinished() {
+        return Objects.equals(info.status, "FINISHED");
+    }
 }
