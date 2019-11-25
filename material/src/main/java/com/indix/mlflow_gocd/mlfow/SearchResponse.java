@@ -43,9 +43,15 @@ public class SearchResponse {
                 return run.hasTag(key) && lastDate.isBefore(end_time);
             }
         });
+        prRuns.sort((o1, o2) -> Long.parseLong(o1.info.end_time) <= Long.parseLong(o2.info.end_time) ? 1 : -1);
 
         HashMap<String, Run> prIdMap = new HashMap<>();
-        prRuns.forEach(run-> prIdMap.put(run.data.getTag(key).value, run));
+        prRuns.forEach(run-> {
+            String prId = run.data.getTag(key).value;
+            if (!prIdMap.containsKey(prId)) {
+                prIdMap.put(prId, run);
+            }
+        });
         return prIdMap;
     }
 }
