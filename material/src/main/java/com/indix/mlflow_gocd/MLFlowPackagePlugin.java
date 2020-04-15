@@ -148,11 +148,13 @@ public class MLFlowPackagePlugin implements GoPlugin {
         Map<String, String> additionalRevisionData = new HashMap<>();
         additionalRevisionData.put("ARTIFACT_URI", latestPromotedRun.info.artifact_uri);
         String revision = latestPromotedRun.info.run_uuid;
+        logger.debug("Latest promoted run: " + revision);
 
         if(!Strings.isNullOrEmpty(prIdTagName)) {
             HashMap<String, Run> runsWithPRTag = searchResponse.runsWithinDuration(prIdTagName, prRunsWithin);
             runsWithPRTag.forEach((prId, run) -> additionalRevisionData.put("PR_ID_ARTIFACT_URI_" + prId, run.info.artifact_uri));
             revision = getAllRunIdsString(revision, runsWithPRTag.values(), previousRevision);
+            logger.debug("Revision for PR: " + revision);
         }
 
         logger.debug(String.format("Latest revision for expt_id:%s is %s", experimentId, revision));
@@ -178,14 +180,16 @@ public class MLFlowPackagePlugin implements GoPlugin {
         Set<String> newRuns = new HashSet<>();
         prRuns.forEach(run-> newRuns.add(run.info.run_uuid));
 
+        if(newRuns.isEmpty()) {
+            logger.debug("New runs empty. Returning promoted run: " + promoted_run);
+            return promoted_run;
+        }
         if(previousRuns.equals(newRuns) || previousRuns.containsAll(newRuns)) {
             logger.debug("Same or less runs found: previous=" + previousRuns + ", new=" + newRuns);
             return previousRevision;
         }
         logger.debug("New runs found: previous=" + previousRuns + ", new=" + newRuns);
-        if(newRuns.isEmpty()) {
-            return promoted_run;
-        }
+
         return promoted_run + ";" + String.join(";", newRuns);
     }
 
