@@ -9,4 +9,6 @@ public class RunInfo {
     public String end_time;
     @Key
     public String artifact_uri;
+    @Key
+    public String status;
 }

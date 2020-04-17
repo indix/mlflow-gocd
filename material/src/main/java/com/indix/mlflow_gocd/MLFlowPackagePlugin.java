@@ -8,6 +8,7 @@ import com.google.api.client.http.json.JsonHttpContent;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.Strings;
 import com.google.gson.GsonBuilder;
 import com.indix.mlflow_gocd.mlfow.Run;
 import com.indix.mlflow_gocd.mlfow.SearchResponse;
@@ -33,6 +34,8 @@ public class MLFlowPackagePlugin implements GoPlugin {
     public static String PROMOTION_TAG_NAME = "PROMOTION_TAG_NAME";
     public static String PROMOTION_TAG_VALUE = "PROMOTION_TAG_VALUE";
     public static String EXPERIMENT_ID = "EXPERIMENT_ID";
+    public static String PR_ID_TAG_NAME = "PR_ID_TAG_NAME";
+    public static String PR_RUNS_WITHIN_DAYS = "PR_RUNS_WITHIN_DAYS";
 
     public static final String REQUEST_REPOSITORY_CONFIGURATION = "repository-configuration";
     public static final String REQUEST_PACKAGE_CONFIGURATION = "package-configuration";
@@ -91,13 +94,8 @@ public class MLFlowPackagePlugin implements GoPlugin {
         final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
         final Map<String, Object> previousRevision = getMapFor(goPluginApiRequest, REQUEST_PREVIOUS_REVISION);
 
-        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
-        Integer experimentId = Integer.parseInt(packageConfig.get(EXPERIMENT_ID));
-        String promoteTagKey = packageConfig.get(PROMOTION_TAG_NAME);
-        String promoteTagValue = packageConfig.get(PROMOTION_TAG_VALUE);
-
         try {
-            RevisionStatus status = getLatestPromotedRun(mlflowUrl, experimentId, promoteTagKey, promoteTagValue);
+            RevisionStatus status = getLatestPromotedRun(repositoryConfig, packageConfig, (String)previousRevision.get("revision"));
             if(!Objects.equals(previousRevision.get("revision"), status.runId)) {
                 return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
             }
@@ -115,13 +113,8 @@ public class MLFlowPackagePlugin implements GoPlugin {
         final Map<String, String> repositoryConfig = keyValuePairs(goPluginApiRequest, REQUEST_REPOSITORY_CONFIGURATION);
         final Map<String, String> packageConfig = keyValuePairs(goPluginApiRequest, REQUEST_PACKAGE_CONFIGURATION);
 
-        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
-        Integer experimentId = Integer.parseInt(packageConfig.get(EXPERIMENT_ID));
-        String promoteTagKey = packageConfig.get(PROMOTION_TAG_NAME);
-        String promoteTagValue = packageConfig.get(PROMOTION_TAG_VALUE);
-
         try {
-            RevisionStatus status = getLatestPromotedRun(mlflowUrl, experimentId, promoteTagKey, promoteTagValue);
+            RevisionStatus status = getLatestPromotedRun(repositoryConfig, packageConfig, "");
             return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, status.toMap());
         }
         catch(Exception ex) {
@@ -130,7 +123,15 @@ public class MLFlowPackagePlugin implements GoPlugin {
         }
     }
 
-    private RevisionStatus getLatestPromotedRun(String mlflowUrl, Integer experimentId, String promoteTagKey, String promoteTagValue) throws IOException {
+    private RevisionStatus getLatestPromotedRun(Map<String, String> repositoryConfig, Map<String, String> packageConfig, String previousRevision) throws IOException {
+
+        String mlflowUrl = repositoryConfig.get(MLFLOW_URL);
+        Integer prRunsWithin = getPRValidityDays(repositoryConfig);
+        Integer experimentId = Integer.parseInt(packageConfig.get(EXPERIMENT_ID));
+        String promoteTagKey = packageConfig.get(PROMOTION_TAG_NAME);
+        String promoteTagValue = packageConfig.get(PROMOTION_TAG_VALUE);
+        String prIdTagName = packageConfig.get(PR_ID_TAG_NAME);
+
         Map<String, Object> payload = new HashMap<>();
         List<Integer> experimentIds = new ArrayList<>();
         experimentIds.add(experimentId);
@@ -143,15 +144,53 @@ public class MLFlowPackagePlugin implements GoPlugin {
                 .execute();
         SearchResponse searchResponse = response.parseAs(SearchResponse.class);
         Run latestPromotedRun = searchResponse.latestWithTag(promoteTagKey, promoteTagValue);
+
         Map<String, String> additionalRevisionData = new HashMap<>();
         additionalRevisionData.put("ARTIFACT_URI", latestPromotedRun.info.artifact_uri);
+        String revision = latestPromotedRun.info.run_uuid;
+        logger.debug("Latest promoted run: " + revision);
+
+        if(!Strings.isNullOrEmpty(prIdTagName)) {
+            HashMap<String, Run> runsWithPRTag = searchResponse.runsWithinDuration(prIdTagName, prRunsWithin);
+            runsWithPRTag.forEach((prId, run) -> additionalRevisionData.put("PR_ID_ARTIFACT_URI_" + prId, run.info.artifact_uri));
+            revision = getAllRunIdsString(revision, runsWithPRTag.values(), previousRevision);
+            logger.debug("Revision for PR: " + revision);
+        }
+
+        logger.debug(String.format("Latest revision for expt_id:%s is %s", experimentId, revision));
         return new RevisionStatus(
-                latestPromotedRun.info.run_uuid,
+                revision,
                 latestPromotedRun.info.end_time,
                 String.format("%s#/experiments/%s/runs/%s", mlflowUrl, experimentId, latestPromotedRun.info.run_uuid),
                 latestPromotedRun.data.getUser(),
                 latestPromotedRun.info.run_uuid,
                 additionalRevisionData);
+    }
+
+    private String getAllRunIdsString(String promoted_run, Collection<Run> prRuns, String previousRevision) {
+
+        String[] runsArray = previousRevision.split(";");
+
+        Set<String> previousRuns = new HashSet<>();
+        Collections.addAll(previousRuns, runsArray);
+
+        String previousPromoted = runsArray[0];
+        previousRuns.remove(previousPromoted);
+
+        Set<String> newRuns = new HashSet<>();
+        prRuns.forEach(run-> newRuns.add(run.info.run_uuid));
+
+        if(newRuns.isEmpty()) {
+            logger.debug("New runs empty. Returning promoted run: " + promoted_run);
+            return promoted_run;
+        }
+        if(previousRuns.equals(newRuns) || previousRuns.containsAll(newRuns)) {
+            logger.debug("Same or less runs found: previous=" + previousRuns + ", new=" + newRuns);
+            return previousRevision;
+        }
+        logger.debug("New runs found: previous=" + previousRuns + ", new=" + newRuns);
+
+        return promoted_run + ";" + String.join(";", newRuns);
     }
 
     private GoPluginApiResponse handlePackageCheckConnection(GoPluginApiRequest goPluginApiRequest) {
@@ -242,6 +281,9 @@ public class MLFlowPackagePlugin implements GoPlugin {
         response.put(PROMOTION_TAG_VALUE,
                 createField("Promotion Tag Value", "true", true, false, false, "3")
         );
+        response.put(PR_ID_TAG_NAME,
+                createField("PR ID Tag Name", "", true, false, false, "4")
+        );
         return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, response);
     }
 
@@ -250,6 +292,8 @@ public class MLFlowPackagePlugin implements GoPlugin {
         response.put(MLFLOW_URL,
                 createField("MLFlow URL", null, true, true, false, "1")
         );
+        response.put(PR_RUNS_WITHIN_DAYS,
+                createField("PR runs within (days)", "0", true, false, false, "2"));
         return createResponse(DefaultGoPluginApiResponse.SUCCESS_RESPONSE_CODE, response);
     }
 
@@ -299,5 +343,13 @@ public class MLFlowPackagePlugin implements GoPlugin {
             keyValuePairs.put(field, value);
         }
         return keyValuePairs;
+    }
+
+    private Integer getPRValidityDays(Map<String, String> repositoryConfig) {
+        String within = repositoryConfig.get(PR_RUNS_WITHIN_DAYS);
+        if(!Strings.isNullOrEmpty(within)) {
+            return Integer.parseInt(repositoryConfig.get(PR_RUNS_WITHIN_DAYS));
+        }
+        return 0;
     }
 }
