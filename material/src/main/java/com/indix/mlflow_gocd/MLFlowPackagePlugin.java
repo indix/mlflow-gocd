@@ -47,8 +47,8 @@ public class MLFlowPackagePlugin implements GoPlugin {
     public static final String REQUEST_LATEST_REVISION_SINCE = "latest-revision-since";
     public static final String REQUEST_PREVIOUS_REVISION= "previous-revision";
 
-    private static final String MLFLOW_GET_EXPERIMENT_ENDPOINT="/api/2.0/preview/mlflow/experiments/get";
-    private static final String MLFLOW_SEARCH_RUNS_ENDPOINT="/api/2.0/preview/mlflow/runs/search";
+    private static final String MLFLOW_GET_EXPERIMENT_ENDPOINT="/api/2.0/mlflow/experiments/get";
+    private static final String MLFLOW_SEARCH_RUNS_ENDPOINT="/api/2.0/mlflow/runs/search";
 
     private static Logger logger = Logger.getLoggerFor(MLFlowPackagePlugin.class);
 
